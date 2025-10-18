@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Bienestar Personal</title>
+    <!-- Incluye Tailwind CSS para estilos modernos y responsivos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilo base para el cuerpo y fuentes */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117; /* Fondo oscuro */
+        }
+        /* Estilo para las alertas críticas */
+        .alert-critical {
+            animation: pulse-red 1.5s infinite;
+        }
+        @keyframes pulse-red {
+            0%, 100% {
+                box-shadow: 0 0 0 0 rgba(255, 60, 60, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 15px 20px rgba(255, 60, 60, 0);
+            }
+        }
+        /* Estilo para los selectores */
+        .custom-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3e%3cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd' /%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1.5em 1.5em;
+        }
+    </style>
+    <script>
+        // Inicialización de la configuración de Tailwind para usar colores personalizados
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'metric-green': '#10b981', // esmeralda (FC)
+                        'metric-blue': '#3b82f6', // azul (SpO2)
+                        'metric-yellow': '#f59e0b', // amarillo (Pasos)
+                        'metric-purple': '#8b5cf6', // púrpura (Kcal)
+                        'metric-red': '#ef4444', // rojo
+                        'metric-cyan': '#22d3ee', // cyan (Predicción)
+                        'bg-dark': '#1e293b', // fondo de tarjeta (slate-800)
+                        'text-light': '#cbd5e1' // gris claro para labels (slate-300)
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="p-4 md:p-8 min-h-screen text-white">
+
+    <header class="text-center mb-10">
+        <h1 class="text-3xl md:text-5xl font-extrabold text-metric-green">
+            Calculadora de Bienestar Personal
+        </h1>
+        <p class="text-gray-400 mt-2 text-lg">Estima tus métricas clave y recibe consejos para el cuidado de tu salud.</p>
+    </header>
+
+    <!-- Panel de Estado de Cálculo -->
+    <div id="connectionStatus" class="flex justify-center mb-8">
+        <div id="statusIndicator" class="bg-gray-700 text-text-light px-6 py-2 rounded-full text-base font-semibold transition-all duration-300 shadow-xl">
+            Esperando datos de evaluación...
+        </div>
+    </div>
+    
+    <!-- Sección de Predicción de Bienestar (NUEVA) -->
+    <div id="predictionCard" class="max-w-4xl mx-auto mb-10 p-6 bg-gradient-to-br from-metric-cyan/20 to-bg-dark rounded-xl shadow-2xl border border-metric-cyan/50 flex items-center space-x-6">
+        <div id="predictionIcon" class="flex-shrink-0">
+            <svg class="w-16 h-16 text-metric-cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M3.636 5.636l.707.707m0 7.728l.707-.707m.707.707l.707-.707M10 21h4"></path></svg>
+        </div>
+        <div>
+            <h3 class="text-xl font-bold text-metric-cyan">Predicción de Bienestar</h3>
+            <p id="predictionText" class="text-text-light mt-1">Selecciona tus estados y presiona "Calcular" para obtener una predicción de cómo podrías sentirte.</p>
+        </div>
+    </div>
+
+
+    <!-- Contenedor Principal de Métricas (4 MÉTICAS) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-10">
+        
+        <!-- Tarjeta de Frecuencia Cardíaca (FC) - Verde -->
+        <div id="cardFC" class="bg-bg-dark p-6 rounded-xl shadow-2xl border border-gray-600">
+            <h2 class="text-base font-semibold mb-3 text-metric-green flex items-center">FC (Ritmo Cardíaco)</h2>
+            <div class="text-5xl font-extrabold" id="displayFC">--</div>
+            <p class="text-gray-400 mt-1">latidos/min (LPM)</p>
+            <p id="alertFC" class="text-xs mt-3 font-medium text-text-light"></p>
+        </div>
+
+        <!-- Tarjeta de Saturación de Oxígeno (SpO₂) - Azul -->
+        <div id="cardSPO2" class="bg-bg-dark p-6 rounded-xl shadow-2xl border border-gray-600">
+            <h2 class="text-base font-semibold mb-3 text-metric-blue flex items-center">SpO₂ (Oxígeno)</h2>
+            <div class="text-5xl font-extrabold" id="displaySPO2">--</div>
+            <p class="text-gray-400 mt-1">porcentaje (%)</p>
+            <p id="alertSPO2" class="text-xs mt-3 font-medium text-text-light"></p>
+        </div>
+        
+        <!-- Tarjeta de Contador de Pasos - Amarillo -->
+        <div id="cardSteps" class="bg-bg-dark p-6 rounded-xl shadow-2xl border border-gray-600">
+            <h2 class="text-base font-semibold mb-3 text-metric-yellow flex items-center">Pasos</h2>
+            <div class="text-5xl font-extrabold" id="displaySteps">--</div>
+            <p class="text-gray-400 mt-1">pasos (estimado)</p>
+            <p id="alertSteps" class="text-xs mt-3 font-medium text-text-light"></p>
+        </div>
+
+        <!-- Tarjeta de Calorías Quemadas - Púrpura -->
+        <div id="cardKcal" class="bg-bg-dark p-6 rounded-xl shadow-2xl border border-gray-600">
+            <h2 class="text-base font-semibold mb-3 text-metric-purple flex items-center">Kcal (Energía)</h2>
+            <div class="text-5xl font-extrabold" id="displayKcal">--</div>
+            <p class="text-gray-400 mt-1">calorías quemadas</p>
+            <p id="alertKcal" class="text-xs mt-3 font-medium text-green-400"></p>
+        </div>
+    </div>
+
+    <!-- Panel de Evaluación de Estado (3 SELECTORES) -->
+    <div class="max-w-6xl mx-auto bg-bg-dark p-6 rounded-xl shadow-2xl border border-gray-600">
+        <h3 class="text-2xl font-semibold mb-4 text-gray-300">Completa tu Evaluación Rápida</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Selector de Nivel de Actividad -->
+            <div>
+                <label for="activityLevel" class="block mb-2 text-sm font-medium text-text-light">1. Nivel de Actividad Reciente:</label>
+                <select id="activityLevel" class="custom-select w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    <option value="rest">En reposo / Sentado</option>
+                    <option value="light">Actividad Ligera</option>
+                    <option value="moderate">Ejercicio Moderado</option>
+                    <option value="intense">Ejercicio Intenso</option>
+                </select>
+            </div>
+            
+            <!-- Selector de Estado Físico/Ánimo (CON MÁS OPCIONES) -->
+            <div>
+                <label for="currentState" class="block mb-2 text-sm font-medium text-text-light">2. Estado Físico/Emocional:</label>
+                <select id="currentState" class="custom-select w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    <option value="relaxed">Normal / Relajado</option>
+                    <option value="motivated">Motivado / Con energía</option>
+                    <option value="stressed">Estresado / Ansioso</option>
+                    <option value="tired">Cansado / Con poca energía</option>
+                    <option value="sad">Triste / Desanimado</option>
+                    <option value="sick">Con Malestar / Enfermo</option>
+                </select>
+            </div>
+
+            <!-- Selector de Hidratación -->
+            <div>
+                <label for="hydrationStatus" class="block mb-2 text-sm font-medium text-text-light">3. Estado de Hidratación:</label>
+                <select id="hydrationStatus" class="custom-select w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                    <option value="hydrated">Bien Hidratado</option>
+                    <option value="low">Ligeramente Deshidratado</option>
+                    <option value="dehydrated">Deshidratado</option>
+                </select>
+            </div>
+        </div>
+
+        <button id="calculateButton" onclick="calculateMetrics()" 
+                class="w-full mt-6 bg-metric-purple hover:bg-purple-700 text-white font-bold py-3 rounded-lg transition duration-300 shadow-lg transform hover:scale-[1.01]">
+            Calcular Métricas y Obtener Predicción
+        </button>
+    </div>
+
+    <!-- Sección de Resumen y Consejos -->
+    <div class="max-w-6xl mx-auto mt-8 p-6 bg-bg-dark rounded-xl shadow-2xl border border-gray-600">
+        <h3 class="text-2xl font-semibold mb-4 text-metric-yellow">Resumen y Recomendaciones</h3>
+        <ul id="recommendationsList" class="list-disc list-inside text-text-light space-y-2 pl-4">
+            <li>Presiona el botón de cálculo para recibir consejos personalizados.</li>
+        </ul>
+    </div>
+
+    <footer class="mt-10 text-center text-gray-500 text-sm">
+        <p>⚠️ IMPORTANTE: Esta es una herramienta de estimación. No reemplaza lecturas de dispositivos médicos reales.</p>
+    </footer>
+
+    <script>
+        const displayFC = document.getElementById('displayFC');
+        const displaySPO2 = document.getElementById('displaySPO2');
+        const displaySteps = document.getElementById('displaySteps');
+        const displayKcal = document.getElementById('displayKcal');
+        
+        const alertFC = document.getElementById('alertFC');
+        const alertSPO2 = document.getElementById('alertSPO2');
+        const alertSteps = document.getElementById('alertSteps');
+        const alertKcal = document.getElementById('alertKcal');
+        
+        const cardFC = document.getElementById('cardFC');
+        const cardSPO2 = document.getElementById('cardSPO2');
+        const cardSteps = document.getElementById('cardSteps');
+        const cardKcal = document.getElementById('cardKcal');
+        
+        const statusIndicator = document.getElementById('statusIndicator');
+        const recommendationsList = document.getElementById('recommendationsList');
+        
+        // Elementos de la nueva tarjeta de predicción
+        const predictionIcon = document.getElementById('predictionIcon');
+        const predictionText = document.getElementById('predictionText');
+        
+        const CRITICAL_SPO2 = 95;
+        const CRITICAL_FC_HIGH = 100;
+        const CRITICAL_FC_LOW = 60;
+        const TARGET_STEPS_MODERATE = 5000;
+
+        function getRandomInt(min, max) {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function calculateMetrics() {
+            const activityLevel = document.getElementById('activityLevel').value;
+            const currentState = document.getElementById('currentState').value;
+            const hydrationStatus = document.getElementById('hydrationStatus').value;
+
+            let fcMin, fcMax, spo2Min, spo2Max, stepsMin, stepsMax, kcalBase;
+
+            switch (activityLevel) {
+                case 'rest': fcMin=55; fcMax=70; spo2Min=98; spo2Max=100; stepsMin=100; stepsMax=1000; kcalBase=60; break;
+                case 'light': fcMin=70; fcMax=90; spo2Min=97; spo2Max=99; stepsMin=1500; stepsMax=5000; kcalBase=150; break;
+                case 'moderate': fcMin=100; fcMax=130; spo2Min=95; spo2Max=98; stepsMin=5000; stepsMax=9000; kcalBase=350; break;
+                case 'intense': fcMin=130; fcMax=160; spo2Min=93; spo2Max=97; stepsMin=9000; stepsMax=15000; kcalBase=550; break;
+            }
+
+            // Ajustes por estado físico/emocional
+            switch (currentState) {
+                case 'stressed': fcMin += 10; fcMax += 15; spo2Max = Math.min(spo2Max, 99); kcalBase *= 1.05; break;
+                case 'tired': fcMin -= 5; fcMax -= 5; stepsMax = Math.max(stepsMin, stepsMax / 2); kcalBase *= 0.9; break;
+                case 'sad': fcMin += 5; fcMax += 10; stepsMax = Math.max(stepsMin, stepsMax / 1.5); break;
+                case 'motivated': fcMin += 5; fcMax += 5; stepsMin *= 1.2; stepsMax *= 1.2; kcalBase *= 1.1; break;
+                case 'sick': fcMin += 15; fcMax += 25; spo2Min = Math.max(90, spo2Min-2); spo2Max -= 2; stepsMin=0; stepsMax=1000; kcalBase *= 1.15; break;
+            }
+
+            // Ajustes por hidratación
+            if (hydrationStatus === 'low') { fcMin += 5; fcMax += 5; }
+            else if (hydrationStatus === 'dehydrated') { fcMin += 10; fcMax += 15; spo2Max = Math.min(spo2Max, 97); }
+
+            const finalFC = getRandomInt(fcMin, fcMax);
+            const finalSPO2 = getRandomInt(spo2Min, spo2Max);
+            const finalSteps = getRandomInt(stepsMin, stepsMax);
+            const finalKcal = getRandomInt(Math.floor(kcalBase * 0.9), Math.ceil(kcalBase * 1.1));
+
+            updateDisplay(finalFC, finalSPO2, finalSteps, finalKcal, activityLevel, currentState, hydrationStatus);
+        }
+
+        function updateDisplay(fc, spo2, steps, kcal, activity, state, hydration) {
+            statusIndicator.textContent = "Cálculo Completo y Predicción Generada";
+            statusIndicator.className = 'bg-metric-purple text-white px-6 py-2 rounded-full text-base font-semibold shadow-xl';
+
+            displayFC.textContent = fc;
+            displaySPO2.textContent = spo2;
+            displaySteps.textContent = steps.toLocaleString('es-ES');
+            displayKcal.textContent = kcal;
+
+            [cardFC, cardSPO2, cardSteps, cardKcal].forEach(card => card.classList.remove('alert-critical', 'border-metric-red', 'border-metric-yellow', 'border-metric-green'));
+            
+            let recommendations = [];
+            
+            // Lógica de Alertas FC
+            let fcMessage = 'FC en rango normal para tu estado.';
+            alertFC.classList.remove('text-metric-red');
+            alertFC.classList.add('text-green-400');
+            if (fc > CRITICAL_FC_HIGH || fc < CRITICAL_FC_LOW) {
+                cardFC.classList.add('alert-critical', 'border-metric-red');
+                fcMessage = (fc > CRITICAL_FC_HIGH ? 'FC ALTA. Puede ser por actividad, estrés o deshidratación.' : 'FC BAJA. Puede ser por descanso o fatiga.');
+                alertFC.classList.add('text-metric-red');
+                if (fc > CRITICAL_FC_HIGH) recommendations.push({text: "Tu FC estimada está alta. Considera tu estrés o hidratación.", type: 'warning'});
+            } else {
+                recommendations.push({text: "Tu ritmo cardíaco parece estable. ¡Buen trabajo!", type: 'normal'});
+            }
+            alertFC.textContent = fcMessage;
+
+            // Lógica de Alertas SpO₂
+            let spo2Message = 'SpO₂ estimada en rango normal.';
+            alertSPO2.classList.remove('text-metric-red', 'text-metric-yellow');
+            alertSPO2.classList.add('text-green-400');
+            if (spo2 < CRITICAL_SPO2) {
+                cardSPO2.classList.add('alert-critical', 'border-metric-red');
+                spo2Message = '¡CRÍTICO! SpO₂ estimada baja.';
+                alertSPO2.classList.add('text-metric-red');
+                recommendations.push({text: "SpO₂ estimada es baja. Si es real, busca asistencia médica.", type: 'critical'});
+            } else if (spo2 >= CRITICAL_SPO2 && spo2 <= 96) {
+                cardSPO2.classList.add('border-metric-yellow');
+                spo2Message = 'Advertencia: SpO₂ ligeramente baja.';
+                alertSPO2.classList.add('text-metric-yellow');
+                recommendations.push({text: "Tu SpO₂ está en el límite. Respira aire fresco.", type: 'warning'});
+            }
+            alertSPO2.textContent = spo2Message;
+
+            // Lógica de Pasos
+            alertSteps.classList.remove('text-metric-yellow');
+            alertSteps.classList.add('text-green-400');
+            if (steps < TARGET_STEPS_MODERATE && activity !== 'rest') {
+                cardSteps.classList.add('border-metric-yellow');
+                alertSteps.classList.add('text-metric-yellow');
+                alertSteps.textContent = 'Advertencia: Pasos bajos. Busca moverte más.';
+                recommendations.push({text: "Intenta caminar un poco más. Apunta a 5,000 pasos.", type: 'warning'});
+            } else {
+                cardSteps.classList.add('border-metric-green');
+                alertSteps.textContent = `¡Estás en buen camino!`;
+            }
+
+            // Lógica de Consejos y Predicción Emocional
+            const { icon, text } = generateEmotionalPrediction(activity, state, hydration, fc, spo2, steps);
+            predictionIcon.innerHTML = icon;
+            predictionText.textContent = text;
+            
+            if (hydration !== 'hydrated') {
+                recommendations.push({text: "¡Prioriza la hidratación! Bebe un vaso de agua ahora.", type: 'critical'});
+            }
+            if (state === 'stressed') {
+                 recommendations.push({text: "El estrés afecta tu cuerpo. Tómate 5 minutos para respirar profundamente.", type: 'warning'});
+            }
+             if (state === 'sick') {
+                 recommendations.push({text: "Descanso y recuperación son clave. Evita el ejercicio intenso.", type: 'critical'});
+            }
+
+            // Mostrar recomendaciones
+            recommendationsList.innerHTML = '';
+            recommendations.forEach(rec => {
+                const li = document.createElement('li');
+                let colorClass = 'text-text-light';
+                if (rec.type === 'critical') colorClass = 'text-metric-red font-bold';
+                if (rec.type === 'warning') colorClass = 'text-metric-yellow';
+                li.className = `${colorClass}`;
+                li.textContent = rec.text;
+                recommendationsList.appendChild(li);
+            });
+        }
+        
+        function generateEmotionalPrediction(activity, state, hydration, fc, spo2, steps) {
+             const icons = {
+                energized: `<svg class="w-16 h-16 text-metric-yellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>`,
+                relaxed: `<svg class="w-16 h-16 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+                tired: `<svg class="w-16 h-16 text-metric-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>`,
+                warning: `<svg class="w-16 h-16 text-metric-red" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`
+            };
+            
+            if (state === 'sick' || hydration === 'dehydrated' || spo2 < CRITICAL_SPO2) {
+                return { icon: icons.warning, text: "Tu cuerpo podría estar bajo presión. Es un buen momento para descansar, hidratarte y escuchar tus necesidades." };
+            }
+            if (state === 'motivated' && activity === 'intense') {
+                 return { icon: icons.energized, text: "¡Te sientes imparable! Tu energía está al máximo y tu cuerpo responde con fuerza. Sigue así, pero no olvides recuperarte." };
+            }
+            if (state === 'tired' || (activity === 'rest' && steps < 1000)) {
+                return { icon: icons.tired, text: "Parece un día de baja energía. Es ideal para el descanso y actividades tranquilas que te ayuden a recargar." };
+            }
+             if (state === 'stressed' || (fc > 95 && activity === 'rest')) {
+                return { icon: icons.warning, text: "Podrías sentirte agitado o bajo estrés. Tus métricas sugieren que una pausa para relajarte podría ser muy beneficiosa." };
+            }
+             if (state === 'sad') {
+                return { icon: icons.tired, text: "Es posible que tu ánimo esté bajo. Una caminata ligera o un poco de aire fresco podría ayudarte a sentirte mejor." };
+            }
+
+            return { icon: icons.relaxed, text: "Tu estado general parece equilibrado y saludable. Es un buen día para mantener tus rutinas y disfrutar del bienestar." };
+        }
+
+        window.onload = () => [alertFC, alertSPO2, alertSteps, alertKcal].forEach(el => el.classList.add('text-text-light'));
+    </script>
+
+</body>
+</html>
